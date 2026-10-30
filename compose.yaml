@@ -1,0 +1,18 @@
+services:
+  md-lab:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      MD_APP_MODE: ${MD_APP_MODE:-demo}
+      MD_SESSION_SECRET: ${MD_SESSION_SECRET:?Set a random session secret in .env}
+      MD_COOKIE_SECURE: ${MD_COOKIE_SECURE:-true}
+      MD_PUBLIC_ORIGIN: ${MD_PUBLIC_ORIGIN:-}
+      MD_DATA_DIR: /data
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:-}
+    volumes:
+      - md_v2_data:/data
+    restart: unless-stopped
+volumes:
+  md_v2_data:

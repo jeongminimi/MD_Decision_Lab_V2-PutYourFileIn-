@@ -1,7 +1,6 @@
 import csv
 import os
 import shutil
-import tempfile
 import unittest
 from collections import Counter
 from datetime import date
@@ -20,6 +19,7 @@ from app.main import app
 from app.models import (WorkDailySale, WorkDataset, WorkProduct, WorkSimDecision, WorkSimLedger, WorkSimPolicy,
                         WorkSimPrice, WorkSimScenario)
 from app.services.hm_simulation import AS_OF, CASE_DIR, import_simulation
+from tests.workspace_temp import workspace_temp
 
 REAL_DB = Path(__file__).resolve().parents[1] / "md_decision_lab.db"
 # The case CSVs derive from H&M Kaggle data and are not committed; generate them locally to run these tests.
@@ -109,7 +109,7 @@ class HmSimulationTests(unittest.TestCase):
                                      "actual_receipt_date_assumed": "", "received_units_synthetic": "0", "status": "open"}],
         }
         for label, rows in cases.items():
-            with self.subTest(label), tempfile.TemporaryDirectory() as tmp:
+            with self.subTest(label), workspace_temp() as tmp:
                 for name in ("hm_product_policy.csv", "hm_inventory_ledger.csv", "hm_economics.csv"):
                     shutil.copy(CASE_DIR / name, tmp)
                 write_case(Path(tmp), "hm_purchase_orders.csv", rows)
@@ -318,7 +318,7 @@ class HmSimulationTests(unittest.TestCase):
 @unittest.skipUnless(REAL_DB.exists() and CASE_FILES_PRESENT, "local H&M database or case CSVs not present")
 class RealDatabaseImportTest(unittest.TestCase):
     def test_case_files_match_the_stored_hm_sales(self):
-        with tempfile.TemporaryDirectory() as tmp:
+        with workspace_temp() as tmp:
             copy = Path(tmp) / "copy.db"
             shutil.copyfile(REAL_DB, copy)
             engine = create_engine(f"sqlite:///{copy}")

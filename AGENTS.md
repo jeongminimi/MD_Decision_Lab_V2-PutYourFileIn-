@@ -1,5 +1,11 @@
 # MD Decision Lab — working rules
 
+## V2 workspace boundary
+- This is the V2 development copy. The sibling `MD_Decision_Lab` directory is the frozen V1; never edit or run write operations against V1.
+- Local H&M source ZIPs are shared read-only originals. Use this copy's independent database and extracted photos.
+- Preserve analytical services and SQLite table definitions. Hosted isolation is provided by a separate SQLite database per validated Supabase user or signed demo session.
+- Keep local databases, H&M images/data and credentials out of Git and deployment images. No production Supabase project or public host is configured yet.
+
 ## Product objective
 Help a small commerce MD turn product-level sales and stock data into traceable replenishment, promotion, and live-exposure decisions. The first version is a portfolio demonstrator and must not claim proven revenue gains.
 

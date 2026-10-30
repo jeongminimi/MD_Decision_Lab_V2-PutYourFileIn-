@@ -3,6 +3,7 @@
 import csv
 import io
 import math
+import zipfile
 from collections import defaultdict
 from datetime import date, timedelta
 
@@ -21,6 +22,16 @@ from ..services.work_risk import RISK_PRIORITY, classify_work_risk
 
 router = APIRouter(prefix="/api/work", tags=["MD workspaces"])
 MAX_UPLOAD = 15 * 1024 * 1024
+MAX_UPLOAD_ROWS = 100_000
+
+
+def _limited_rows(iterator):
+    rows = []
+    for row in iterator:
+        if len(rows) >= MAX_UPLOAD_ROWS:
+            raise ValueError("파일 하나당 최대 100,000행을 올릴 수 있습니다. 기간을 나누어 주세요.")
+        rows.append(row)
+    return rows
 
 
 def _number(value: object, label: str, *, integer: bool = False) -> int | float | None:
@@ -50,16 +61,25 @@ async def _rows(file: UploadFile) -> list[dict[str, str]]:
         reader = csv.DictReader(io.StringIO(content))
         if not reader.fieldnames:
             raise ValueError("첫 줄에 열 이름이 필요합니다.")
-        return [{str(k).strip(): (v or "").strip() for k, v in row.items() if k is not None} for row in reader]
+        return _limited_rows({str(k).strip(): (v or "").strip() for k, v in row.items() if k is not None} for row in reader)
     if name.endswith(".xlsx"):
         from openpyxl import load_workbook
+        try:
+            with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+                if sum(item.file_size for item in archive.infolist()) > 128 * 1024 * 1024:
+                    raise ValueError("압축 해제한 엑셀 내용이 너무 큽니다. CSV 또는 기간을 나눈 파일을 사용하세요.")
+        except zipfile.BadZipFile as exc:
+            raise ValueError("정상적인 XLSX 파일을 올려주세요.") from exc
         book = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
         try:
             sheet = book.active
             iterator = sheet.iter_rows(values_only=True)
-            headers = [str(x).strip() if x is not None else "" for x in next(iterator)]
-            return [{key: "" if value is None else str(value).strip() for key, value in zip(headers, row) if key}
-                    for row in iterator if any(value is not None for value in row)]
+            header = next(iterator, None)
+            if header is None:
+                raise ValueError("첫 줄에 열 이름이 필요합니다.")
+            headers = [str(x).strip() if x is not None else "" for x in header]
+            return _limited_rows({key: "" if value is None else str(value).strip() for key, value in zip(headers, row) if key}
+                    for row in iterator if any(value is not None for value in row))
         finally:
             book.close()
     raise ValueError("CSV 또는 XLSX 파일을 올려주세요.")

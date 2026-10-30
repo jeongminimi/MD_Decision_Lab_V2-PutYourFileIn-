@@ -1,9 +1,9 @@
 import type { ActionOutcome, ActionRecord, ActionType, DashboardSummary, ProductAnalysis } from "./types";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+import { apiFetch } from "./http";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, init);
+  const response = await apiFetch(path, init);
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     throw new Error(body?.detail || "요청을 처리하지 못했습니다.");

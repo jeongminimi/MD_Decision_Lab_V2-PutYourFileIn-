@@ -50,3 +50,9 @@ Thumbs.db
 .vscode/
 .idea/
 settings.json
+.env
+.env.*
+!.env.example
+.local-data/
+backend/tests/.hosting_runs/
+V2_COPY_INFO.md

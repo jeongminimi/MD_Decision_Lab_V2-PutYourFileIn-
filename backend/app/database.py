@@ -3,6 +3,7 @@ from pathlib import Path
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from fastapi import Request
 
 
 class Base(DeclarativeBase):
@@ -15,8 +16,11 @@ engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
-def get_db():
-    db = SessionLocal()
+def get_db(request: Request):
+    factory = getattr(request.state, "workspace_factory", None)
+    if factory is None and request.app.state.hosting.mode != "local":
+        raise RuntimeError("A hosted request must have a verified workspace")
+    db = (factory or SessionLocal)()
     try:
         yield db
     finally:

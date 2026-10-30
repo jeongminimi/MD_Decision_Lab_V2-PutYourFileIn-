@@ -1,7 +1,7 @@
-const base = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+import { apiFetch } from "./http";
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${base}${path}`, init);
+  const response = await apiFetch(path, init);
   if (!response.ok) {
     const error = await response.json().catch(() => null);
     throw new Error(typeof error?.detail === "string" ? error.detail : "요청을 처리하지 못했습니다.");

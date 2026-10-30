@@ -1,5 +1,9 @@
 # MD Decision Lab
 
+> **V2 개발 복사본** — V1의 분석·화면·SQLite 테이블 구조를 유지하고 배포 실행, 방문자별 합성 데모, Supabase 로그인과 계정별 비공개 SQLite를 추가했습니다. V1은 별도 폴더에 보존합니다. V2 실행·배포·사용자별 저장과 실제 연결 확인 방법은 [V2 배포 안내](docs/V2_DEPLOYMENT.md)를 먼저 확인하세요. 아래 원래 분석 기능 설명은 그대로 유지합니다.
+
+구현과 검증 완료 범위, 실제 Supabase·컨테이너 연결 전 남은 확인은 [V2 검증 결과](docs/V2_VALIDATION.md)에 기록했습니다.
+
 **주니어 MD가 상품별 판매·재고를 보고 무엇을 먼저 확인할지 정하고, 그 판단을 나중에 돌아볼 수 있게 돕는 로컬 업무 도구**
 
 의류 MD 실무 경험(시즌 물량 확보, 주간 판매율 기반 재고 조율, 프로모션 운영)에서 출발한 포트폴리오 프로젝트입니다. 자세한 문제 정의와 결과는 [사례 연구](docs/PORTFOLIO_CASE_STUDY.md)에 있습니다.
@@ -114,10 +118,10 @@ cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-python -m uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload --port 8001
 ```
 
-API 문서: <http://127.0.0.1:8000/docs>
+V2 API 문서: <http://127.0.0.1:8001/docs>
 
 ### 2. 프런트엔드
 
@@ -127,7 +131,7 @@ npm.cmd install
 npm.cmd run dev
 ```
 
-기본 API 주소는 `http://127.0.0.1:8000`이며 `VITE_API_BASE_URL`로 바꿀 수 있습니다.
+V2 화면은 `http://localhost:5180`에서 열립니다. 개발 중에는 Vite가 `/api`를 `http://127.0.0.1:8001`로 전달하고, 배포 후에는 화면과 API가 같은 주소를 사용합니다. 별도 서버 구성은 `VITE_API_BASE_URL`로 지정할 수 있습니다.
 
 ### 3. H&M 데이터 직접 내려받기 (선택)
 
