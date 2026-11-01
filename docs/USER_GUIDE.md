@@ -2,18 +2,24 @@
 
 개발을 배우지 않아도 **상품을 고르고, 판매 전략을 계산하고, 판단을 저장하는 흐름**을 따라 할 수 있습니다. 처음에는 저장소에 포함된 가상 의류 자료만 사용하세요. H&M 파일은 필요하지 않습니다.
 
+## 배포된 V2 주소에서 자기 파일 사용하기
+
+설치와 로그인 없이 상단 **내 파일로 분석**을 누르세요. 상품·판매 양식 예시를 내려받아 CSV 또는 XLSX 두 파일을 준비하고, 작업공간 이름과 판매 파일 마지막 날짜에 맞는 재고 기준일을 지정한 뒤 **파일 검증 후 연결**을 누릅니다. 재고·가격·원가가 포함되면 소진일과 이익까지 계산할 수 있습니다.
+
+자료와 판단은 이 브라우저의 임시 작업공간에 연결됩니다. 기본 접근 기간은 접속 후 최대 24시간이며, 쿠키를 삭제하면 다시 열 수 없습니다. 업로드 영역의 **내 임시 자료 삭제**로 자기 자료를 지울 수 있습니다. 로그인 기능이 연결된 배포에서는 계정별 장기 보관도 선택할 수 있습니다. H&M 원본과 Supabase 계정이 없어도 기본 업로드·분석은 가능합니다.
+
 ## 이미 화면이 열려 있다면
 
-백엔드와 화면 서버가 켜져 있을 때 [프로그램 열기](http://localhost:5173/)로 이동하고 아래 **첫 사용: 가상 의류 자료 연결**부터 시작하세요. 화면에 “작업공간 연결”만 보인다면 자료를 연결해야 합니다. 화면이 열리지 않으면 아래 설치·실행 순서를 따르세요.
+V2 화면은 [프로그램 열기](http://127.0.0.1:5180/)에서 확인합니다. 합성 데모는 새 환경에서 자동으로 연결됩니다. 자기 자료를 쓰려면 상단 **내 파일로 분석**을 누르세요. 별도로 배포된 주소를 받았다면 그 주소를 사용하며 설치할 필요가 없습니다.
 
 ## 처음 설치하기 (Windows)
 
 1. [Python](https://www.python.org/downloads/) **3.11 이상**과 [Node.js](https://nodejs.org/) **20 이상**을 설치합니다. Python 설치 화면에서 **Add python.exe to PATH**를 선택하세요.
-2. [프로젝트 GitHub](https://github.com/jeongminimi/MD_Decision_Lab)에서 초록색 **Code → Download ZIP**을 누릅니다. 압축을 풀고 `MD_Decision_Lab-main` 폴더를 `C:\`로 옮깁니다. 최종 위치가 `C:\MD_Decision_Lab-main\README.md`인지 확인하세요.
+2. 받은 V2 프로젝트 폴더를 엽니다. 아래 명령의 `C:\MD_Decision_Lab_v2`는 예시 경로이며, 실제 복사한 폴더 경로로 바꾸세요. V1과 V2는 별도 폴더로 보관합니다.
 3. 시작 메뉴에서 **PowerShell**을 엽니다. 아래 명령을 한 줄씩 붙여넣고 Enter를 누릅니다. 설치는 처음 한 번만 하면 됩니다.
 
 ```powershell
-cd C:\MD_Decision_Lab-main\backend
+cd C:\MD_Decision_Lab_v2\backend
 python -m pip install -r requirements.txt
 cd ..\frontend
 npm.cmd install
@@ -26,8 +32,8 @@ PowerShell 창을 **두 개** 열어 각각 실행하고, 사용하는 동안 �
 첫 번째 창 — 분석 기능:
 
 ```powershell
-cd C:\MD_Decision_Lab-main\backend
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+cd C:\MD_Decision_Lab_v2\backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
 ```
 
 `Application startup complete`가 보이면 준비된 것입니다.
@@ -35,18 +41,15 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 두 번째 창 — 화면:
 
 ```powershell
-cd C:\MD_Decision_Lab-main\frontend
+cd C:\MD_Decision_Lab_v2\frontend
 npm.cmd run dev
 ```
 
-`Local: http://localhost:5173/`가 보이면 브라우저에서 [http://localhost:5173/](http://localhost:5173/)을 엽니다. 주소의 숫자가 다르게 표시되면 두 번째 창에 나온 주소를 사용하세요.
+`Local: http://localhost:5180/`가 보이면 브라우저에서 [http://localhost:5180/](http://localhost:5180/)을 엽니다.
 
 ## 첫 사용: 가상 의류 자료 연결
 
-1. `오늘의 할 일` 화면에서 **상품·판매 파일 연결**을 엽니다.
-2. 작업공간 이름에 `가상 의류 공개 데모`, 재고 기준일에 **2026-08-31**을 입력합니다.
-3. **상품 파일**에 `C:\MD_Decision_Lab-main\sample_data\public_demo\products.csv`, **일별 판매 파일**에 같은 폴더의 `sales.csv`를 선택합니다.
-4. **선택 기간의 모든 판매가 포함돼 있습니다**와 **가상 데이터로 표시**를 모두 선택하고 **파일 검증 후 연결**을 누릅니다.
+새 설치나 공개 배포에서는 `가상 의류 데모`가 자동 연결됩니다. 이미 연결된 작업공간이 있다면 목록에서 선택하세요. 직접 가상 자료를 연결할 때는 **상품·판매 파일 연결**에서 프로젝트의 `sample_data/public_demo/products.csv`와 `sales.csv`, 재고 기준일 **2026-08-31**을 선택하고 **선택 기간의 모든 판매가 포함돼 있습니다**, **가상 데이터로 표시**를 체크합니다.
 
 상품 30종과 판매 기록이 표시되면 연결에 성공한 것입니다. 이 자료의 판매·재고·가격은 모두 **가상**입니다. 연결할 때마다 새 작업공간이 생기므로 이미 연결했다면 상단의 **작업공간** 목록에서 기존 것을 선택하세요.
 
@@ -81,7 +84,7 @@ npm.cmd run dev
 
 ## H&M 사례는 선택 사항
 
-H&M 거래 원본은 이 저장소에 없습니다. [Kaggle 데이터 페이지](https://www.kaggle.com/competitions/h-and-m-personalized-fashion-recommendations/data)에서 규칙에 동의해 자료를 받은 경우에만 [README의 H&M 준비 절차](../README.md#3-hm-데이터-준비-선택)를 진행하세요. 화면에서 **운영 시뮬레이션 자료 연결**을 누르면 실제 판매 수량과 가상 재고·가격·원가를 함께 볼 수 있습니다. H&M 가격값을 원화 매출로 해석하지 않습니다.
+H&M 거래 원본은 이 저장소에 없습니다. [Kaggle 데이터 페이지](https://www.kaggle.com/competitions/h-and-m-personalized-fashion-recommendations/data)에서 규칙에 동의해 자료를 받은 경우에만 [README의 H&M 준비 절차](../README.md#3-hm-데이터-직접-내려받기-선택)를 **개인 PC의 로컬 모드**에서 진행하세요. 화면에서 **운영 시뮬레이션 자료 연결**을 누르면 실제 판매 수량과 가상 재고·가격·원가를 함께 볼 수 있습니다. H&M 가격값을 원화 매출로 해석하지 않습니다.
 
 ### 동종 상품과 다음 시즌 비교
 

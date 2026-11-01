@@ -138,7 +138,7 @@ class WorkspaceMiddleware:
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http" or not scope["path"].startswith("/api/") or scope["path"] in {
-                "/api/health", "/api/runtime"} or scope["method"] == "OPTIONS":
+                "/api/health", "/api/runtime"} or scope["path"].startswith("/api/templates/") or scope["method"] == "OPTIONS":
             return await self.app(scope, receive, send)
         headers = Headers(scope=scope)
         engine = None
@@ -171,15 +171,17 @@ class WorkspaceMiddleware:
                 identity = self.store.parse_guest(value)
                 if identity is None:
                     identity, cookie_value = self.store.new_guest()
-            if not identity.user_id and (scope["path"].startswith("/api/import/") or
+            if not identity.user_id and not self.settings.allow_guest_uploads and (scope["path"].startswith("/api/import/") or
                     scope["path"].endswith("/upload") or scope["path"].endswith("/sales/import")):
                 raise HTTPException(401, "자기 파일을 올리려면 로그인해 주세요. 데모 상품의 입력·비교·판단 저장은 바로 사용할 수 있습니다.")
             if scope["path"].startswith("/api/work/sim/import-sample"):
                 raise HTTPException(403, "H&M 원본과 운영 사례 연결은 개인 PC의 로컬 모드에서 사용하세요.")
             # Bound memory as well as requests. Keys contain no credentials.
             now = time.monotonic()
-            if len(self.rate) > 1000:
+            if len(self.rate) >= 1000:
                 self.rate = defaultdict(deque, {k: v for k, v in self.rate.items() if v and v[-1] > now - 60})
+                if identity.key not in self.rate and len(self.rate) >= 1000:
+                    raise HTTPException(429, "현재 요청이 많습니다. 잠시 후 다시 시도해 주세요.")
             recent = self.rate[identity.key]
             while recent and recent[0] <= now - 60:
                 recent.popleft()

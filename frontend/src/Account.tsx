@@ -6,6 +6,8 @@ import "./account.css";
 interface Runtime {
   mode: "local" | "demo" | "private";
   auth_enabled: boolean;
+  guest_uploads_enabled: boolean;
+  guest_ttl_seconds: number;
   supabase_url: string | null;
   supabase_key: string | null;
 }
@@ -58,13 +60,13 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   }, []);
   if (error) return <main className="account-start"><h1>작업공간 연결 확인</h1><p role="alert">{error}</p><button onClick={() => window.location.reload()}>다시 연결</button>{client && <button onClick={() => void client.auth.signOut({ scope: "local" }).then(() => window.location.reload())}>로그인 상태 초기화</button>}</main>;
   if (!runtime) return <main className="account-start" role="status">작업공간을 준비하고 있습니다…</main>;
-  return <AccountContext.Provider value={{ runtime, user, client, canUpload: runtime.mode === "local" || !!user }}>
+  return <AccountContext.Provider value={{ runtime, user, client, canUpload: runtime.mode === "local" || runtime.guest_uploads_enabled || !!user }}>
     <div key={user?.id || "guest"}>{children}</div>
   </AccountContext.Provider>;
 }
 
-export function AccountControls() {
-  const { runtime, user, client } = useAccount();
+export function AccountControls({ onUpload }: { onUpload: () => void }) {
+  const { runtime, user, client, canUpload } = useAccount();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   if (runtime.mode === "local") return null;
@@ -73,7 +75,8 @@ export function AccountControls() {
     if (result?.error) setError("로그아웃하지 못했습니다. 다시 시도해 주세요.");
   }
   return <div className="account-controls">
-    <span>{user ? "내 비공개 작업공간" : "개인 데모 · 24시간"}</span>
+    <span>{user ? "내 비공개 작업공간" : `임시 작업공간 · ${Math.round(runtime.guest_ttl_seconds / 3600)}시간`}</span>
+    {canUpload && <button className="photo-toggle" onClick={onUpload}>내 파일로 분석</button>}
     {runtime.auth_enabled && (user ? <button className="photo-toggle" onClick={() => void logout()}>로그아웃</button> :
       <button className="photo-toggle" onClick={() => setOpen(true)}>로그인 / 가입</button>)}
     {error && <small role="alert">{error}</small>}
@@ -103,7 +106,7 @@ function LoginDialog({ client, onClose }: { client: SupabaseClient; onClose: () 
   return <dialog ref={dialog} className="account-dialog" aria-labelledby="login-title" onCancel={onClose}>
     <button className="account-close" aria-label="닫기" onClick={onClose}>×</button>
     <h2 id="login-title">{signup ? "계정 만들기" : "내 작업공간 로그인"}</h2>
-    <p>파일과 판단 기록은 로그인한 계정에만 저장됩니다. 데모 기록은 계정으로 자동 이전되지 않습니다.</p>
+    <p>로그인하면 파일과 판단 기록을 계정에 보관할 수 있습니다. 임시 작업공간의 기록은 계정으로 자동 이전되지 않습니다.</p>
     <form onSubmit={(event) => void submit(event)}>
       <label>이메일<input autoFocus type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)}/></label>
       <label>비밀번호<input type="password" autoComplete={signup ? "new-password" : "current-password"} minLength={8} maxLength={256} required value={password} onChange={(event) => setPassword(event.target.value)}/></label>

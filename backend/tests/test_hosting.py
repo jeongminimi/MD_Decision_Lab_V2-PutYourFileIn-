@@ -3,6 +3,7 @@
 import asyncio
 import base64
 import json
+import io
 import shutil
 import unittest
 from dataclasses import replace
@@ -90,11 +91,87 @@ class HostingTests(unittest.TestCase):
         b_id = self.initialize(self.b)
         self.assertEqual(self.b.get(f"/api/work/datasets/{b_id}/decisions").json(), [])
 
-    def test_guest_upload_and_legacy_import_rejected(self):
+    def upload_company(self, client, name="My private file"):
+        result = client.post("/api/work/datasets/upload", data={
+            "name": name, "snapshot_date": "2026-09-02", "complete_calendar": "true"},
+            files={"products_file": ("products.csv", PRODUCTS, "text/csv"),
+                   "sales_file": ("sales.csv", SALES, "text/csv")})
+        self.assertEqual(result.status_code, 200, result.text)
+        return result.json()["id"]
+
+    def test_guest_upload_can_be_disabled_by_server(self):
+        with TestClient(create_app(replace(self.settings, allow_guest_uploads=False))) as client:
+            self.assertFalse(client.get("/api/runtime").json()["guest_uploads_enabled"])
+            self.assertFalse(client.get("/api/me").json()["can_upload"])
+            for path in ("/api/work/datasets/upload", "/api/import/products", "/api/import/sales",
+                         "/api/work/datasets/1/sales/import"):
+                self.assertEqual(client.post(path).status_code, 401, path)
+
+    def test_guest_upload_analysis_decision_and_restart_without_supabase(self):
+        self.assertTrue(self.a.get("/api/runtime").json()["guest_uploads_enabled"])
+        self.assertTrue(self.a.get("/api/me").json()["can_upload"])
+        dataset_id = self.upload_company(self.a)
+        data = self.a.get(f"/api/work/analysis?dataset_id={dataset_id}").json()
+        self.assertEqual(data["dataset"]["kind"], "company")
+        item = data["products"][0]
+        self.assertEqual((item["sku"], item["units_30d"], item["stock_on_hand"]), ("A-1", 3, 10))
+        payload = dict(dataset_id=dataset_id, sku="A-1", as_of_date="2026-09-02", discount_pct=0,
+                       expected_units_30d=5, purchase_units=0, action="promotion", rationale="재고와 이익을 확인한 검토입니다.")
+        compared = self.a.post("/api/work/compare", json=payload)
+        self.assertEqual(compared.status_code, 200, compared.text)
+        self.assertEqual(compared.json()["estimated_gross_profit_krw"], 200000)
+        self.assertEqual(self.a.post("/api/work/decisions", json=payload).status_code, 200)
+        cookie = self.a.cookies.get(COOKIE)
+        with TestClient(create_app(self.settings)) as restarted:
+            restarted.cookies.set(COOKIE, cookie)
+            self.assertEqual(len(restarted.get(f"/api/work/datasets/{dataset_id}/decisions").json()), 1)
+
+    def test_guest_upload_and_followup_sales_are_isolated(self):
         self.initialize(self.a)
-        for path in ("/api/work/datasets/upload", "/api/import/products", "/api/import/sales",
-                     "/api/work/datasets/1/sales/import"):
-            self.assertEqual(self.a.post(path).status_code, 401, path)
+        self.initialize(self.b)
+        dataset_id = self.upload_company(self.a, "Alice file")
+        self.assertEqual(self.b.get(f"/api/work/analysis?dataset_id={dataset_id}").status_code, 404)
+        self.assertEqual(self.b.get(f"/api/work/catalog?dataset_id={dataset_id}").status_code, 404)
+        extra = b"sku,sale_date,units_sold,revenue,gross_margin\nA-1,2026-09-03,1,80000,40000\n"
+        appended = self.a.post(f"/api/work/datasets/{dataset_id}/sales/import", data={"complete_calendar": "true"},
+                               files={"sales_file": ("later.csv", extra, "text/csv")})
+        self.assertEqual(appended.status_code, 200, appended.text)
+        self.assertEqual(appended.json()["end_date"], "2026-09-03")
+        self.assertEqual(len(self.b.get("/api/work/datasets").json()), 1)
+
+    def test_guest_can_remove_only_own_uploaded_data(self):
+        self.initialize(self.a)
+        self.initialize(self.b)
+        self.upload_company(self.a, "Alice file")
+        b_id = self.upload_company(self.b, "Bob file")
+        self.assertEqual(self.a.post("/api/workspace/reset").status_code, 200)
+        self.assertEqual(len(self.a.get("/api/work/datasets").json()), 1)
+        self.assertEqual(self.b.get(f"/api/work/analysis?dataset_id={b_id}").status_code, 200)
+        self.assertEqual(len(self.b.get("/api/work/datasets").json()), 2)
+
+    def test_guest_can_upload_xlsx(self):
+        from openpyxl import Workbook
+        files = {}
+        for name, csv_data in (("products_file", PRODUCTS), ("sales_file", SALES)):
+            book = Workbook()
+            for row in csv_data.decode().splitlines():
+                book.active.append(row.split(","))
+            output = io.BytesIO()
+            book.save(output)
+            book.close()
+            files[name] = (name + ".xlsx", output.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        result = self.a.post("/api/work/datasets/upload", data={"name": "Excel", "snapshot_date": "2026-09-02"}, files=files)
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(result.json()["product_count"], 1)
+
+    def test_upload_templates_are_downloadable_without_a_workspace(self):
+        for kind, columns in (("products", "sku,name"), ("sales", "sku,sale_date,units_sold")):
+            response = self.a.get(f"/api/templates/{kind}")
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(columns, response.text)
+            self.assertIn("attachment", response.headers["content-disposition"])
+        self.assertEqual(self.a.get("/api/templates/not-a-template").status_code, 404)
+        self.assertEqual(list((self.root / "guests").glob("*.db")), [])
 
     def test_cross_site_write_and_invalid_bearer_rejected(self):
         self.initialize(self.a)

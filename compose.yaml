@@ -5,6 +5,8 @@ services:
       - "8080:8080"
     environment:
       MD_APP_MODE: ${MD_APP_MODE:-demo}
+      MD_ALLOW_GUEST_UPLOADS: ${MD_ALLOW_GUEST_UPLOADS:-true}
+      MD_GUEST_TTL_SECONDS: ${MD_GUEST_TTL_SECONDS:-86400}
       MD_SESSION_SECRET: ${MD_SESSION_SECRET:?Set a random session secret in .env}
       MD_COOKIE_SECURE: ${MD_COOKIE_SECURE:-true}
       MD_PUBLIC_ORIGIN: ${MD_PUBLIC_ORIGIN:-}

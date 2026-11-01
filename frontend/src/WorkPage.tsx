@@ -7,6 +7,7 @@ import HmSimulation from "./HmSimulation";
 import CatalogPage from "./CatalogPage";
 import StrategyPlanner from "./StrategyPlanner";
 import { useAccount } from "./Account";
+import { apiBase, apiFetch } from "./http";
 import "./work.css";
 
 const n = (value: number) => new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 1 }).format(value);
@@ -135,7 +136,7 @@ export default function WorkPage({ view, onNavigate }: { view: WorkView; onNavig
         </details>
         {focus && datasetId != null && <div className="work-detail-target" id="work-product-detail"><ProductDetail key={`${datasetId}-${focus.sku}-${asOf}`} item={focus} dataset={dataset!} asOf={asOf} onChanged={() => refresh()}/></div>}
       </>}
-      <UploadPanel onUploaded={async (id) => { const items = await workApi.datasets(); setDatasets(items); changeDatasetFromUpload(id, items); }} busy={busy} setBusy={setBusy} setError={setError} setNotice={setNotice}/>
+      {dataset && <UploadPanel onUploaded={async (id) => { const items = await workApi.datasets(); setDatasets(items); changeDatasetFromUpload(id, items); }} busy={busy} setBusy={setBusy} setError={setError} setNotice={setNotice}/>}
     </>}
     {view === "actions" && dataset && <>{dataset.kind === "company" && <SalesUpdatePanel datasetId={dataset.id} onUploaded={async (date) => { setDatasets(await workApi.datasets()); setAsOf(date); }}/>}<section className="panel work-panel"><div className="work-panel-heading"><div><h2>내 결정 기록</h2><small>저장한 검토와 실제 실행을 구분합니다.</small></div></div>{decisions.length ? <div className="work-decision-list">{decisions.map((item) => <DecisionRow key={item.id} item={item} dataset={dataset} onChanged={() => refresh()}/>)}</div> : <p className="work-empty">저장한 판단이 없습니다. 상품에서 판매 전략을 계산하고 이유를 남겨보세요.</p>}</section></>}
     {view === "planning" && analysis && <PlanningPanel products={analysis.products} dataset={dataset!} onOpen={openProduct}/>}
@@ -268,7 +269,7 @@ function UploadPanel({ onUploaded, busy, setBusy, setError, setNotice }: {
   onUploaded: (id: number) => Promise<void>; busy: boolean; setBusy: (value: boolean) => void;
   setError: (value: string) => void; setNotice: (value: string) => void;
 }) {
-  const { canUpload, runtime } = useAccount();
+  const { canUpload, runtime, user } = useAccount();
   const [name, setName] = useState("");
   const [snapshot, setSnapshot] = useState(new Date().toISOString().slice(0, 10));
   const [complete, setComplete] = useState(false);
@@ -286,5 +287,34 @@ function UploadPanel({ onUploaded, busy, setBusy, setError, setNotice }: {
     finally { setBusy(false); }
   }
   if (!canUpload) return <section className="panel work-upload"><p>{runtime.auth_enabled ? "자기 파일을 올리려면 로그인해 주세요. 데모 입력·전략 비교·판단 저장은 바로 체험할 수 있습니다." : "현재는 합성 의류 데모입니다. 자기 파일은 개인 PC에서 연결할 수 있습니다."}</p></section>;
-  return <details className="panel work-upload"><summary><FileUp size={17}/> 상품·판매 파일 연결</summary><div className="work-upload-body"><p>CSV 또는 XLSX 두 파일을 함께 올리면 새 작업공간을 만듭니다. 기존 자료는 유지됩니다.</p><div className="work-form-grid"><label>작업공간 이름<input value={name} onChange={(event) => setName(event.target.value)} placeholder="예: 10월 여성복 운영"/></label><label>재고 기준일<input type="date" value={snapshot} onChange={(event) => setSnapshot(event.target.value)}/></label><label>상품 파일<input type="file" accept=".csv,.xlsx" onChange={(event) => setProducts(event.target.files?.[0] || null)}/><small>필수: sku, name · 재고·원가 등은 선택</small></label><label>일별 판매 파일<input type="file" accept=".csv,.xlsx" onChange={(event) => setSales(event.target.files?.[0] || null)}/><small>필수: sku, sale_date, units_sold</small></label></div><label className="work-checkbox"><input type="checkbox" checked={complete} onChange={(event) => setComplete(event.target.checked)}/> 선택 기간의 모든 판매가 포함돼 있습니다. 기록이 없는 날은 0개 판매로 봐도 됩니다.</label><label className="work-checkbox"><input type="checkbox" checked={synthetic} onChange={(event) => setSynthetic(event.target.checked)}/> 가상 데이터로 표시 (공개 데모 파일을 올릴 때 체크)</label><button type="button" className="button button-primary" disabled={!products || !sales || !name.trim() || busy} onClick={() => void submit()}><Database size={16}/>{busy ? "검증하고 연결 중…" : "파일 검증 후 연결"}</button></div></details>;
+  async function clearTemporaryData() {
+    if (!window.confirm("이 브라우저에서 올린 자료와 판단 기록을 삭제하고 합성 데모로 돌아갈까요? 삭제한 자료는 되돌릴 수 없습니다.")) return;
+    setBusy(true); setError("");
+    try {
+      const response = await apiFetch("/api/workspace/reset", { method: "POST" });
+      if (!response.ok) throw new Error("자료를 지우지 못했습니다. 다시 시도해 주세요.");
+      window.location.reload();
+    } catch (err) { setError(err instanceof Error ? err.message : "자료를 지우지 못했습니다."); setBusy(false); }
+  }
+  return <details id="company-upload" className="panel work-upload" open={runtime.mode !== "local"}>
+    <summary><FileUp size={17}/> 상품·판매 파일 연결</summary>
+    <div className="work-upload-body">
+      <p>상품·판매 CSV 또는 XLSX를 올리면 바로 분석합니다. 재고 기준일은 판매 파일의 마지막 날짜로 지정하세요.</p>
+      {runtime.mode !== "local" && !user && <small>이 브라우저의 임시 작업공간입니다. 접속 후 최대 {Math.round(runtime.guest_ttl_seconds / 3600)}시간 동안 접근할 수 있으며, 쿠키를 지우면 다시 열 수 없습니다.</small>}
+      <div className="work-template-links">
+        <a className="button button-secondary" href={`${apiBase}/api/templates/products`} download>상품 파일 예시</a>
+        <a className="button button-secondary" href={`${apiBase}/api/templates/sales`} download>판매 파일 예시</a>
+      </div>
+      <div className="work-form-grid">
+        <label>작업공간 이름<input value={name} onChange={(event) => setName(event.target.value)} placeholder="예: 10월 여성복 운영"/></label>
+        <label>재고 기준일<input type="date" value={snapshot} onChange={(event) => setSnapshot(event.target.value)}/></label>
+        <label>상품 파일<input type="file" accept=".csv,.xlsx" onChange={(event) => setProducts(event.target.files?.[0] || null)}/><small>필수: sku, name · 재고·원가 등은 선택</small></label>
+        <label>일별 판매 파일<input type="file" accept=".csv,.xlsx" onChange={(event) => setSales(event.target.files?.[0] || null)}/><small>필수: sku, sale_date, units_sold</small></label>
+      </div>
+      <label className="work-checkbox"><input type="checkbox" checked={complete} onChange={(event) => setComplete(event.target.checked)}/> 선택 기간의 모든 판매가 포함돼 있습니다. 기록이 없는 날은 0개 판매로 봐도 됩니다.</label>
+      <label className="work-checkbox"><input type="checkbox" checked={synthetic} onChange={(event) => setSynthetic(event.target.checked)}/> 가상 데이터로 표시 (공개 데모 파일을 올릴 때 체크)</label>
+      <button type="button" className="button button-primary" disabled={!products || !sales || !name.trim() || busy} onClick={() => void submit()}><Database size={16}/>{busy ? "검증하고 연결 중…" : "파일 검증 후 연결"}</button>
+      {runtime.mode !== "local" && !user && <button type="button" className="button button-secondary" disabled={busy} onClick={() => void clearTemporaryData()}>내 임시 자료 삭제</button>}
+    </div>
+  </details>;
 }

@@ -23,6 +23,7 @@ class HostingSettings:
     frontend_dir: Path = field(default_factory=lambda: PROJECT_ROOT / "frontend" / "dist")
     supabase_url: str = ""
     supabase_key: str = ""
+    allow_guest_uploads: bool = True
     guest_ttl: int = 86400
     max_guests: int = 100
     max_db_bytes: int = 256 * 1024 * 1024
@@ -40,6 +41,7 @@ class HostingSettings:
             frontend_dir=Path(os.getenv("MD_FRONTEND_DIR", str(PROJECT_ROOT / "frontend" / "dist"))),
             supabase_url=os.getenv("SUPABASE_URL", "").rstrip("/"),
             supabase_key=os.getenv("SUPABASE_PUBLISHABLE_KEY", ""),
+            allow_guest_uploads=os.getenv("MD_ALLOW_GUEST_UPLOADS", "true").lower() == "true",
             guest_ttl=int(os.getenv("MD_GUEST_TTL_SECONDS", "86400")),
             max_guests=int(os.getenv("MD_MAX_GUEST_WORKSPACES", "100")),
         )

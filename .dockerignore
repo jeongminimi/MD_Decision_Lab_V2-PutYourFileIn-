@@ -18,3 +18,5 @@ backend/app/**/__pycache__/
 !sample_data/public_demo/
 !sample_data/public_demo/products.csv
 !sample_data/public_demo/sales.csv
+!sample_data/company_products_template.csv
+!sample_data/company_sales_template.csv

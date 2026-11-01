@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Activity, Boxes, ChartNoAxesCombined, Image, ImageOff, LayoutDashboard, Menu, X } from "lucide-react";
 import WorkPage from "./WorkPage";
 import { AccountControls, useAccount } from "./Account";
@@ -16,6 +16,17 @@ export default function App() {
   const { runtime } = useAccount();
   const [view, setView] = useState<WorkView>("overview");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [uploadRequested, setUploadRequested] = useState(false);
+  useEffect(() => {
+    if (!uploadRequested || view !== "overview") return;
+    const frame = requestAnimationFrame(() => {
+      const panel = document.getElementById("company-upload");
+      if (panel instanceof HTMLDetailsElement) panel.open = true;
+      panel?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setUploadRequested(false);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [uploadRequested, view]);
   // Photos are visible on every fresh visit; hiding them is only for the current page session.
   const [hidePhotos, setHidePhotos] = useState(false);
 
@@ -43,7 +54,7 @@ export default function App() {
       <div className="sidebar-bottom"><div className="user-row"><div className="avatar">MD</div><div><b>MD 매니저</b><small>{runtime.mode === "local" ? "로컬 작업공간" : "개인 작업공간"}</small></div></div></div>
     </aside>
     <main className="main-area">
-      <header className="topbar"><button className="mobile-menu" aria-label="메뉴 열기" aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen((open) => !open)}>{mobileNavOpen ? <X size={20} /> : <Menu size={20} />}</button><div className="breadcrumbs"><span>MD Decision Lab</span><b>/</b><strong>{labels[view]}</strong></div><button type="button" className="photo-toggle" aria-pressed={hidePhotos} onClick={togglePhotos} title="상품 사진은 H&M Kaggle 자료입니다. 캡처·시연 자료에서는 숨기세요.">{hidePhotos ? <ImageOff size={16}/> : <Image size={16}/>}{hidePhotos ? "사진 숨김" : "사진 표시"}</button><AccountControls /></header>
+      <header className="topbar"><button className="mobile-menu" aria-label="메뉴 열기" aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen((open) => !open)}>{mobileNavOpen ? <X size={20} /> : <Menu size={20} />}</button><div className="breadcrumbs"><span>MD Decision Lab</span><b>/</b><strong>{labels[view]}</strong></div><button type="button" className="photo-toggle" aria-pressed={hidePhotos} onClick={togglePhotos} title="상품 사진은 H&M Kaggle 자료입니다. 캡처·시연 자료에서는 숨기세요.">{hidePhotos ? <ImageOff size={16}/> : <Image size={16}/>}{hidePhotos ? "사진 숨김" : "사진 표시"}</button><AccountControls onUpload={() => { navigate("overview"); setUploadRequested(true); }}/></header>
       <div className="content-wrap"><WorkPage view={view} onNavigate={navigate}/><footer className="page-footer"><span>MD Decision Lab · {runtime.mode === "local" ? "로컬 MD 작업공간" : "개인 MD 작업공간"}</span><span>시나리오는 실제 매출 성과가 아닙니다.</span></footer></div>
     </main>
   </div>;

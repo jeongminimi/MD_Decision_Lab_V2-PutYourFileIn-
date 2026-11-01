@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt && \
     useradd --uid 10001 --create-home mdapp && mkdir -p /data && chown mdapp:mdapp /data
 COPY backend/app ./app
 COPY sample_data/public_demo /app/sample_data/public_demo
+COPY sample_data/company_products_template.csv sample_data/company_sales_template.csv /app/sample_data/
 COPY --from=ui /build/frontend/dist /app/frontend/dist
 USER mdapp
 EXPOSE 8080
